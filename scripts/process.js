@@ -49,8 +49,8 @@ csv
         csv
             .fromPath(sourceFile,{objectMode: true,headers: true})
             .on("data", function(data){
-                // Comprobamos si el municipio ya ha sido procesado
-                if (processedMunicipios.map(function(e) { return parseInt(e.municipio_id); }).indexOf(parseInt(data.ine_id))<0){
+                // Comprobamos si el municipio ya ha sido procesado. En caso contrario, lo metemos en la cola
+                if (processedMunicipios.map(function(e) { return parseInt(e.municipio_id); }).indexOf(parseInt(data.ine_id)) < 0){
                     q.push(data);
                 }
             })
@@ -87,7 +87,7 @@ function scrape(municipio,next) {
         request(remotePath, function (error, response, body) {
             if (!error && response.statusCode == 200) {
                 var $ = cheerio.load(body);
-                year = $('td:nth-child(2) ').next().text();
+                year = $('tr:nth-child(2) > td:nth-child(3)').text();
                 processedMunicipios.push({'municipio_id':municipio.loine_cp + ("000" + municipio.loine_cm).slice(-3),'nombre':municipio.nombre,'year':year});
             } else {
                 console.log("No se puede descargar municipio: " + remotePath);
