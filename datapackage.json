@@ -52,32 +52,6 @@
           }
         ]
       }
-    },
-    {
-      "name": "revision_catastral2",
-      "path": "data/revision_catastral2.csv",
-      "format": "csv",
-      "mediatype": "text/csv",
-      "bytes": 183555,
-      "schema": {
-        "fields": [
-          {
-            "name": "municipio_id",
-            "type": "integer",
-            "description": ""
-          },
-          {
-            "name": "nombre",
-            "type": "string",
-            "description": ""
-          },
-          {
-            "name": "year",
-            "type": "number",
-            "description": ""
-          }
-        ]
-      }
     }
   ],
   "description": "",
