@@ -1,146 +1,103 @@
-
-var basePath = 'http://www1.sedecatastro.gob.es/portalcatastro/renova_municipiosUrb.aspx?';
-
-
-
-var async = require('async');
 var request = require('request');
-var Converter = require("csvtojson").Converter;
 var cheerio = require("cheerio");
-var csvWriter = require('csv-write-stream')
+var csvWriter = require('csv-write-stream');
 var fs = require("fs");
+var csv = require("fast-csv");
+var async = require("async");
+var semver = require("semver");
+var ProgressBar = require('progress');
+var dpinit = require('datapackage-init');
 
-var converter = new Converter({});
-//var writer = csvWriter({ headers: ["municipio_id", "year"]})
+
+// Parametros
+
+var baseURL = 'http://www1.sedecatastro.gob.es/portalcatastro/renova_municipiosUrb.aspx?';
+var sourceFile = '../datapackages/ds-municipios-catastro-es/data/municipios_catastro.csv';
+var destFile = '../data/revision_catastral.csv';
+
+// Inicializamos archivo csv de salida
+
 var writer = csvWriter();
 
-var output = [];
+var processedMunicipios = [];
 
+// Inicializamos Barra de Progreso
 
-
-//end_parsed will be emitted once parsing finished
-converter.on("end_parsed", function (municipios) {
-
-  async.eachLimit(municipios.slice(3,9),2, retrieveValue, function(err){
-    if (err) {
-      console.log('A file failed to process ' + err);
-    } else {
-      console.log(output);
-      writer.pipe(fs.createWriteStream('revision_catastral.csv'))
-
-      //writer.write(['municipio_id', 'year']);
-
-      output.forEach(function(row) {
-        writer.write(row);
-      });
-
-      writer.end()
-    }
-  });
-
+var bar = new ProgressBar('  downloading [:bar] :percent :etas', {
+    complete: '=',
+    incomplete: ' ',
+    width: 20,
+    total: fs.readFileSync(sourceFile).toString().split("\n").length-2 // numero de municipios. Quitamos header y EOF
 });
 
 
-function retrieveValue (municipio, callback) {
+// Creamos cola y limitamos a 5 tareas concurrentes
 
-  remotePath = basePath  + require('querystring').stringify({'provincia': municipio.loine_cp,'nMun':municipio.nombre});
-
-  codigoIne = municipio.loine_cp + ("000" + municipio.loine_cm).slice(-3);
+var q = async.queue(scrape,5);
 
 
-  (function(remotePath,codigoIne) {
+csv
+    .fromPath(destFile,{objectMode: true,headers: true})
+    .on("data", function(data){
+        processedMunicipios.push(data);
+    })
+    .on("end", function(){
 
-    request(remotePath, function (error, response, body) {
-      if (!error && response.statusCode == 200) {
-        var $ = cheerio.load(body);
+        writer.pipe(fs.createWriteStream(destFile));
 
-        resultado = $('td:nth-child(2) ').next().text();
-        output.push({'municipio_id':codigoIne,'year':resultado});
-        console.log({'municipio_id':codigoIne,'year':resultado});
-        callback(null); //no error
-      } else {
-        callback(new Error("No file found at given url."), null);
-      }
+        // procesamos listado de municipios y metemos tareas en la cola
+        csv
+            .fromPath(sourceFile,{objectMode: true,headers: true})
+            .on("data", function(data){
+                // Comprobamos si el municipio ya ha sido procesado
+                if (processedMunicipios.map(function(e) { return parseInt(e.municipio_id); }).indexOf(parseInt(data.ine_id))<0){
+                    q.push(data);
+                }
+            })
+            .on("end", function(){
+
+                processedMunicipios.forEach(function (municipio) {
+                    writer.write(municipio);
+                })
+
+                // Actualizamos/Creamos datapackage.json
+                dpinit.init("../", function(err, datapackageJson){
+                    //Actualizamos fecha y semver
+                    var today = new Date();
+                    datapackageJson.last_updated = today.getFullYear() + "-" + ("00" + (today.getMonth()+1)).slice(-2) + "-" + ("00" + today.getDate()).slice(-2);
+                    datapackageJson.version = semver.inc(datapackageJson.version,'patch');
+
+                    //Grbamos a disco
+                    fs.writeFile("../datapackage.json", JSON.stringify(datapackageJson,null,2));
+                });
+            });
     });
-  })(remotePath,codigoIne);
 
 
+/**
+ *
+ * @param municipio objeto con las propiedades encontradas en municipios_catastro.csv
+ * @param next callback
+ */
+function scrape(municipio,next) {
 
+    remotePath = baseURL  + require('querystring').stringify({'provincia': municipio.loine_cp,'nMun':municipio.nombre});
 
-
+    (function(remotePath,municipio) {
+        request(remotePath, function (error, response, body) {
+            if (!error && response.statusCode == 200) {
+                var $ = cheerio.load(body);
+                year = $('td:nth-child(2) ').next().text();
+                processedMunicipios.push({'municipio_id':municipio.loine_cp + ("000" + municipio.loine_cm).slice(-3),'nombre':municipio.nombre,'year':year});
+            } else {
+                console.log("No se puede descargar municipio: " + remotePath);
+            }
+        });
+    })(remotePath,municipio);
+    // Esperamos 300 ms
+    setTimeout(function(){
+        bar.tick();
+        next()
+        },300
+    );
 }
-
-fs.createReadStream("../datapackages/ds-municipios-catastro-es/data/municipios_catastro.csv").pipe(converter);
-
-
-
-/*Array.prototype.diff = function(a) {
-  return this.filter(function(i) {return a.indexOf(i) < 0;});
-};*/
-
-//read from file
-/*
-
-function upload_file(file, callback) {
-  // Do funky stuff with file
-  callback();
-}
-
-
-
-queue.drain = function() {
-  console.log("All lines read");
-};
-
-// Queue your files for upload
-queue.push(files);
-
-queue.concurrency = 20; // Increase to twenty simultaneous uploads
-
-*/
-
-/*
-
-var lookup = {
-  'JAN': '01',
-  'FEB': '02',
-  'MAR': '03',
-  'APR': '04',
-  'MAY': '05',
-  'JUN': '06',
-  'JUL': '07',
-  'AUG': '08',
-  'SEP': '09',
-  'OCT': '10',
-  'NOV': '11',
-  'DEC': '12'
-};
-
-function process() {
-  var skip = false;
-  var outcsv = csv().to.path('data/cpi-uk-annual.csv');
-  var outcsv2 = csv().to.path('data/cpi-uk-monthly.csv');
-  csv()
-    .from.path('cache/cpi-uk.csv')
-    .on('record', function(data, idx) {
-      if (idx == 0) {
-        outcsv.write(['Year','Price Index']);
-        outcsv2.write(['Date','Price Index']);
-        return;
-      } else if (!data[0] || skip) {
-        skip = true;
-        return;
-      }
-      var parts = data[0].split(' ');
-      if (parts.length > 1) {
-        data[0] = parts[0] + '-' + lookup[parts[1]] + '-01';
-        outcsv2.write(data);
-      } else {
-        data[0] = parts[0];
-        outcsv.write(data);
-      }
-    });
-}
-
-process();*/
-

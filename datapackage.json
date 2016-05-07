@@ -1,0 +1,62 @@
+{
+  "name": "ds-revision-catastral-es",
+  "title": "Listado de municipios y su año de revision catastral",
+  "descriptions": "Listado de municipios y su año de revision catastral. No incluye País Vasco y Navarra",
+  "licenses": [
+    {
+      "type": "odc-pddl",
+      "url": "http://opendatacommons.org/licenses/pddl/"
+    }
+  ],
+  "author": {
+    "name": "Iñigo Flores"
+  },
+  "keywords": [
+    "Municipios",
+    "Catastro",
+    "Ponencias",
+    "Revision Catastral"
+  ],
+  "dataDependencies": {
+    "ds-municipios-catastro-es": ""
+  },
+  "sources": [
+    {
+      "name": "Consulta de las ponencias de valores. Sede Electrónica del Catastro",
+      "web": "http://www.catastro.meh.es/esp/ponencia_valores.asp"
+    }
+  ],
+  "resources": [
+    {
+      "name": "revision_catastral",
+      "path": "data/revision_catastral.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "bytes": 25,
+      "schema": {
+        "fields": [
+          {
+            "name": "municipio_id",
+            "type": "integer",
+            "description": ""
+          },
+          {
+            "name": "nombre",
+            "type": "string",
+            "description": ""
+          },
+          {
+            "name": "year",
+            "type": "integer",
+            "description": ""
+          }
+        ]
+      }
+    }
+  ],
+  "description": "",
+  "homepage": "",
+  "version": "0.1.2",
+  "license": "ODC-PDDL-1.0",
+  "last_updated": "2016-05-07"
+}
