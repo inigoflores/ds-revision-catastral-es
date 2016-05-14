@@ -18,7 +18,7 @@
     "Revision Catastral"
   ],
   "dataDependencies": {
-    "ds-municipios-catastro-es": ""
+    "https://github.com/inigoflores/ds-municipios-catastro-es": ""
   },
   "sources": [
     {
@@ -32,7 +32,7 @@
       "path": "data/revision_catastral.csv",
       "format": "csv",
       "mediatype": "text/csv",
-      "bytes": 25,
+      "bytes": 183555,
       "schema": {
         "fields": [
           {
