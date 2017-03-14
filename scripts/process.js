@@ -17,9 +17,9 @@ var SOURCEFILE = '../datapackages/ds-municipios-catastro-es/data/municipios_cata
 var DESTFILE = '../data/revision_catastral.csv';
 
 var processedMunicipios = [];
-var allLinesProcessed = false;
-// Inicializamos Barra de Progreso
+var allLinesProcessed = false; //Por si de vacía la cola antes de terminar de procesar todos los datos. Creo que no sucede
 
+// Inicializamos Barra de Progreso
 var bar = new ProgressBar('  downloading [:bar] :percent :etas', {
   complete: '=',
   incomplete: ' ',
@@ -27,12 +27,15 @@ var bar = new ProgressBar('  downloading [:bar] :percent :etas', {
   total: fs.readFileSync(SOURCEFILE).toString().split("\n").length - 2 // numero de municipios. Quitamos header y EOF
 });
 
+// Inicializamos CSV de salida
+writer.pipe(fs.createWriteStream(DESTFILE));
 
 // Creamos cola y limitamos a 5 tareas concurrentes
 
 var q = async.queue(scrape, 5);
 
-
+// Leemos el CSV de salida, por si ya existiera (p.e. operación previa interrumpida).
+// TODO: Incluir la opción de borrarado del fichero, cuando queremos procesar un año nuevo
 csv
   .fromPath(DESTFILE, {objectMode: true, headers: true})
   .on("data", function (data) {
@@ -43,7 +46,7 @@ csv
     csv
       .fromPath(SOURCEFILE, {objectMode: true, headers: true})
       .on("data", function (data) {
-        // Comprobamos si el municipio ya ha sido procesado
+        // Comprobamos si el municipio ya ha sido procesado. Solo entran en la cola los que no existen previamente en el CSV destino
         var notFound = processedMunicipios.map(function (e) {return parseInt(e.municipio_id)}).indexOf(parseInt(data.ine_id)) < 0;
         if (notFound) {
           q.push(data);
@@ -62,8 +65,6 @@ csv
  */
 function scrape(municipio, next) {
 
-  console.log(municipio);
-
   remotePath = BASEURL + require('querystring').stringify({
       'provincia': municipio.loine_cp,
       'nMun': municipio.nombre
@@ -74,7 +75,8 @@ function scrape(municipio, next) {
       if (!error && response.statusCode == 200) {
         var $ = cheerio.load(body);
         year = $('tr:nth-child(2) > td:nth-child(3)').text();
-        processedMunicipios.push({
+        //Grabamos el dato del municipio al CSV destino
+        writer.write({
           'municipio_id': municipio.loine_cp + ("000" + municipio.loine_cm).slice(-3),
           'nombre': municipio.nombre,
           'year': year
@@ -102,12 +104,6 @@ q.drain = function () {
 
 //  Grabamos CSV a disco y regeneramos datapackage.json
 function terminate(){
-  // Inicializamos archivo csv de salida
-  writer.pipe(fs.createWriteStream(DESTFILE));
-  processedMunicipios.forEach(function (municipio) {
-    writer.write(municipio);
-  });
-
   // Actualizamos/Creamos datapackage.json
   dpinit.init("../", function (err, datapackageJson) {
     //Actualizamos fecha y semver
