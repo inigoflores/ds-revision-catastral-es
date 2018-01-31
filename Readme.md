@@ -9,7 +9,7 @@ Dataset que incluye un listado de municipios y su año de revisión catastral.
 
 - Fuente: [Consulta de las ponencias de valores. Sede Electrónica del Catastro](http://www.catastro.meh.es/esp/ponencia_valores.asp)
 - Tipo: HTML 
-- Datos procesados: [/data/revision_catastral.csv](data/revision_catastral.csv) 
+- Datos procesados: [/data/](data/)
 
 
 
