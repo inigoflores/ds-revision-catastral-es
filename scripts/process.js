@@ -14,7 +14,7 @@ var writer = csvWriter();
 
 var BASEURL = 'http://www1.sedecatastro.gob.es/portalcatastro/renova_municipiosUrb.aspx?';
 var SOURCEFILE = '../datapackages/ds-municipios-catastro-es/data/municipios_catastro.csv';
-var DESTFILE = '../data/revision_catastral.csv';
+var DESTFILE = '../data/revision_catastral_' + new Date().getFullYear() + '.csv';
 
 var processedMunicipios = [];
 var allLinesProcessed = false; //Por si de vacía la cola antes de terminar de procesar todos los datos. Creo que no sucede

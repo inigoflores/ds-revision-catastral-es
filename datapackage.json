@@ -104,12 +104,38 @@
           }
         ]
       }
+    },
+    {
+      "name": "revision_catastral_2019",
+      "path": "data/revision_catastral_2019.csv",
+      "format": "csv",
+      "mediatype": "text/csv",
+      "bytes": 182636,
+      "schema": {
+        "fields": [
+          {
+            "name": "municipio_id",
+            "type": "integer",
+            "description": ""
+          },
+          {
+            "name": "nombre",
+            "type": "string",
+            "description": ""
+          },
+          {
+            "name": "year",
+            "type": "number",
+            "description": ""
+          }
+        ]
+      }
     }
   ],
   "description": "",
   "homepage": "",
-  "version": "0.1.47",
+  "version": "0.1.52",
   "license": "ODC-PDDL-1.0",
-  "last_updated": "2018-01-31",
+  "last_updated": "2019-08-28",
   "repository": "git://github.com/inigoflores/ds-revision-catastral-es.git"
 }
