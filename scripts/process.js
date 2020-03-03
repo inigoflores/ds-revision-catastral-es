@@ -86,11 +86,11 @@ function scrape(municipio, next) {
       }
     });
   })(remotePath, municipio);
-  // Esperamos 300 ms
+  // Esperamos 1000 ms
   setTimeout(function () {
       bar.tick();
       next()
-    }, 300
+    }, 1000
   );
 }
 
