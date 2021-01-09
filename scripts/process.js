@@ -9,7 +9,7 @@ var semver = require("semver");
 var ProgressBar = require('progress');
 var dpinit = require('datapackage-init');
 
-var writer = csvWriter();
+var writer = csvWriter({sendHeaders: false});
 // Parametros
 
 var BASEURL = 'http://www1.sedecatastro.gob.es/portalcatastro/renova_municipiosUrb.aspx?';
@@ -19,20 +19,27 @@ var DESTFILE = '../data/revision_catastral_' + new Date().getFullYear() + '.csv'
 var processedMunicipios = [];
 var allLinesProcessed = false; //Por si de vacía la cola antes de terminar de procesar todos los datos. Creo que no sucede
 
+// Ajustamos parametros para evitar que salte el baneo por superar el limite de peticiones por segundo.
+// Update 2021: Parece que salta siempre si hay más de ~7000 peticiones en una hora. Ejecutarlo en días diferentes o
+// desde distintas IPs
+var concurrency = 5;
+var timeout = 500;
+
 // Inicializamos Barra de Progreso
 var bar = new ProgressBar('  downloading [:bar] :percent :etas', {
   complete: '=',
   incomplete: ' ',
   width: 20,
-  total: fs.readFileSync(SOURCEFILE).toString().split("\n").length - 2 // numero de municipios. Quitamos header y EOF
+  total: fs.readFileSync(SOURCEFILE).toString().split("\n").length - fs.readFileSync(DESTFILE).toString().split("\n").length
 });
 
 // Inicializamos CSV de salida
-writer.pipe(fs.createWriteStream(DESTFILE));
+writer.pipe(fs.createWriteStream(DESTFILE,{
+      'flags': 'a', 'encoding': null, 'mode': 0666
+}));
 
-// Creamos cola y limitamos a 5 tareas concurrentes
-
-var q = async.queue(scrape, 5);
+// Creamos cola y limitamos las tareas concurrentes
+var q = async.queue(scrape, concurrency); //con esto se e
 
 // Leemos el CSV de salida, por si ya existiera (p.e. operación previa interrumpida).
 // TODO: Incluir la opción de borrarado del fichero, cuando queremos procesar un año nuevo
@@ -42,6 +49,12 @@ csv
     processedMunicipios.push(data);
   })
   .on("end", function () {
+    //console.log(processedMunicipios.length);
+    // creamos los cabeceros solo si el fichero no existe previamente
+    if(processedMunicipios.length==0) {
+      writer.write({'municipio_id':'municipio_id', 'nombre':'nombre', 'year':'year'});
+    }
+    //throw new Error("my error message");
     // procesamos listado de municipios y metemos tareas en la cola
     csv
       .fromPath(SOURCEFILE, {objectMode: true, headers: true})
@@ -86,21 +99,22 @@ function scrape(municipio, next) {
       }
     });
   })(remotePath, municipio);
-  // Esperamos 1000 ms
+  // Throttling
   setTimeout(function () {
       bar.tick();
       next()
-    }, 1000
+    }, timeout
   );
 }
 
 
 // Callback que se invoca cuando se vacía la cola
-q.drain = function () {
+q.drain(() =>  {
   if (q.length() === 0 && allLinesProcessed) {
     terminate();
   }
-}
+})
+
 
 //  Grabamos CSV a disco y regeneramos datapackage.json
 function terminate(){
@@ -113,5 +127,6 @@ function terminate(){
 
     //Grbamos a disco
     fs.writeFile("../datapackage.json", JSON.stringify(datapackageJson, null, 2));
+
   });
 }
