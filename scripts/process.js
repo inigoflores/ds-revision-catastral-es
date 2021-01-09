@@ -26,11 +26,18 @@ var concurrency = 5;
 var timeout = 500;
 
 // Inicializamos Barra de Progreso
+
+var totalSize = fs.readFileSync(SOURCEFILE).toString().split("\n").length;
+
+if (fs.existsSync(DESTFILE)) {
+  totalSize = totalSize - fs.readFileSync(DESTFILE).toString().split("\n").length;
+}
+
 var bar = new ProgressBar('  downloading [:bar] :percent :etas', {
   complete: '=',
   incomplete: ' ',
   width: 20,
-  total: fs.readFileSync(SOURCEFILE).toString().split("\n").length - fs.readFileSync(DESTFILE).toString().split("\n").length
+  total: totalSize
 });
 
 // Inicializamos CSV de salida
@@ -77,6 +84,8 @@ csv
  * @param next callback
  */
 function scrape(municipio, next) {
+
+  municipio.nombre = municipio.nombre.replace(/ +(?= )/g,''); //	L'ESPLUGA DE FRANCOLI tiene doble espacio.
 
   remotePath = BASEURL + require('querystring').stringify({
       'provincia': municipio.loine_cp,
